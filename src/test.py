@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from torch.nn import utils
 from torch.autograd import Variable
 
 from .model import Model
@@ -8,6 +9,8 @@ from .utils import label_encapsule, psnr, score_norm
 
 import numpy as np
 import sklearn.metrics as skmetr
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
 from glob import glob
 from tqdm import tqdm
 import os
@@ -27,7 +30,7 @@ class Test():
         self.args = args
         
     def run(self):
-        pth = 'mem200_batch8_seeds0_clip20_run12-17_06:42PM_auc972.pth'
+        pth = self.args.saved
         
         print(f'test on {self.args.dataset}: {pth}...')
         
@@ -48,9 +51,25 @@ class Test():
         labels = label_encapsule(np.load(self.gt_label).squeeze(),
                                  frame_path, self.args.clip_length)
         
+        # memp = net.me1.parameters()
+        # for p in memp:
+        #     tmp = p.cpu().detach().numpy()
+            
+        # tsne = TSNE(n_components=2)
+        # tsnev = tsne.fit_transform(tmp)
+        
+        # plt.figure(figsize=(10,10))
+        # plt.scatter(tsnev[:,0], tsnev[:,1])
+        
+        # plt.xlim(tsnev[:,0].min()-1, tsnev[:,0].max()+1)
+        # plt.ylim(tsnev[:,1].min()-1, tsnev[:,1].max()+1)
+        
+        # plt.savefig('./run1.png')
+        # print()
+        
         scores = []
         with torch.no_grad():
-            for i, (vid, fls) in enumerate(tqdm(zip(videos, flows))):
+            for i, (vid, fls) in enumerate(zip(tqdm(videos), flows)):
                 loader = testloader(frame_path=vid,
                                     flow_path=fls,
                                     num_workers=self.args.num_workers,
@@ -63,7 +82,7 @@ class Test():
                     
                     output = net(frame[:,:-3], flow)
                       
-                    error = MSE(output[0], frame[0,-3:])
+                    error = MSE(output, frame[:,-3:])
                     err_list = np.append(err_list, psnr(error.item()))
                     
                 p = score_norm(err_list)
@@ -75,3 +94,6 @@ class Test():
         auc = skmetr.auc(fpr, tpr)
 
         print(f'fianl auc: {auc}')
+        
+    def __call__(self):
+        self.run()

@@ -2,7 +2,7 @@
 * Python 3.8
 * PyTorch 1.10.0
 
-Import the Ananconda virtual envrionment using "env.yaml".
+Import the Ananconda virtual envrionment using "env.yaml" or using Dockerfile
 
 ## Datasets
 * UCSD Pedestrian 2

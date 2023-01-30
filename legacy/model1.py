@@ -12,11 +12,11 @@ class Model(nn.Module):
         self.decoder = Decoder()
         
         if dataset == 'ped2':
-            topk = [5, 4, 3] # 5, 4, 3
-        elif dataset == 'avenue':
-            topk = [10, 8, 6] # 10, 8, 6
-        elif dataset == 'shanghai':
             topk = [16, 8, 4]
+        elif dataset == 'avenue':
+            topk = [10, 8, 6]
+        elif dataset == 'shanghai':
+            topk = [20, 16, 12]
         
         self.me1 = Memory(64, 200, topk[0])
         self.me2 = Memory(128, 200, topk[1])
@@ -31,17 +31,18 @@ class Model(nn.Module):
         z_frame, s_frame = self.a_encoder(frame)
         z_flow, s_flow = self.m_encoder(flow)
         
-        wired1 = self.me1(s_frame[0], s_flow[0])
-        wired2 = self.me2(s_frame[1], s_flow[1])
-        wired3 = self.me3(s_frame[2], s_flow[2])
-        
-        skip = (self.at1(wired1[0], wired1[1]),
-                self.at2(wired2[0], wired2[1]),
-                self.at3(wired3[0], wired3[1]),)
+        integrated = (self.at1(s_frame[0], s_flow[0]),
+                      self.at2(s_frame[1], s_flow[1]),
+                      self.at3(s_frame[2], s_flow[2]))
         z = self.atz(z_frame, z_flow)
         
-        output = self.decoder(z, skip)
-        # dloss = 0.01 * torch.mean(dloss1 + dloss2 + dloss3)
+        wired1, dloss1 = self.me1(integrated[0])
+        wired2, dloss2 = self.me2(integrated[1])
+        wired3, dloss3 = self.me3(integrated[2])
+        
+        wired = (wired1, wired2, wired3)
+        output = self.decoder(z, wired)
+        dloss = 0.1 * torch.mean(dloss1 + dloss2 + dloss3)
 
-        return output
+        return output, dloss
 

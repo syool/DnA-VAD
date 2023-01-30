@@ -4,9 +4,9 @@ from torch.autograd import Variable
 import torchvision.utils as vutils
 from torchvision import transforms
 
-from ..src.model import Model
-from ..src.load import testloader
-from ..src.utils import label_encapsule, psnr, score_norm
+from .model import Model
+from .load import testloader
+from .utils import label_encapsule, psnr, score_norm
 
 import numpy as np
 import sklearn.metrics as skmetr
@@ -15,12 +15,10 @@ from tqdm import tqdm
 import pickle
 import os
 
-from .error import ssim
 
-
-class Ratio():
+class Vis():
     def __init__(self, args) -> None:
-        super(Ratio, self).__init__()
+        super(Vis, self).__init__()
         self.device = torch.device(f'cuda:{args.cuda}' \
                                    if torch.cuda.is_available() \
                                    else 'cpu')
@@ -32,11 +30,11 @@ class Ratio():
         self.args = args
         
     def run(self):
-        pth = 'mem200_clip20_ep15_auc868.pth'
+        pth = 'mem200_batch8_seeds0_clip20_run12-17_06:42PM_auc972.pth'
         
         print(f'test on {self.args.dataset}: {pth}...')
         
-        net = Model(self.args.clip_length).to(self.device)
+        net = Model(self.args.clip_length, self.args.dataset).to(self.device)
         net.load_state_dict(torch.load(self.log_path+'/'+pth,
                                        map_location=f'cuda:{self.args.cuda}'))
         
@@ -66,37 +64,27 @@ class Ratio():
                     frame = Variable(frame).to(self.device)
                     flow = Variable(flow).to(self.device)
                     
-                    output = net(frame[:,:-3], flow)
+                    _, coefficients = net(frame[:,:-3], flow)
                     
-                    tr = transforms.Compose([
-                         transforms.ToPILImage(),
-                         transforms.Grayscale(),
-                         transforms.ToTensor()
-                    ])
+                    coef = coefficients[2].detach()
                     
-                    out = tr((output[0].detach().cpu()+1)/2)
-                    target = tr((frame[0,-3:].detach().cpu()+1)/2)
+                    # coefficients[0] 256
+                    # coefficients[1] 128
+                    # coefficients[2] 64
+                    # coefficients[3] 32
                     
-                    out = out.unsqueeze(1)
-                    target = target.unsqueeze(1)
+                    vidnum = f'{i+1}'.zfill(2)
+                    err_vid[vidnum] = err_list
                     
-                    error = 1 - ssim(out, target, data_range=1)
-                    error = error.cpu().detach().numpy().squeeze(1)
-                    
-                    err_list.append(error)
-                
-                vidnum = f'{i+1}'.zfill(2)
-                err_vid[vidnum] = err_list
-                
-                # imglog = f'/home/user/Downloads/errors/{vidnum}'
-                # os.makedirs(imglog, exist_ok=True)
-                    
-                # np.save(f'{imglog}/{idx+1}', error)
-                # vutils.save_image(error, f'{imglog}/{idx+1}.png')
+                    imglog = f'/home/user/Downloads/coefs64/{vidnum}'
+                    os.makedirs(imglog, exist_ok=True)
+                        
+                    # np.save(f'{imglog}/{idx+1}', coef)
+                    vutils.save_image(coef, f'{imglog}/{idx+1}.png')
             
-            log = '/home/user/Downloads'
-            pkl = open(f'{log}/err_{self.args.dataset}.pkl', 'wb')
-            pickle.dump(err_vid, pkl)
-            pkl.close()
+            # log = '/home/user/Downloads'
+            # pkl = open(f'{log}/err_{self.args.dataset}.pkl', 'wb')
+            # pickle.dump(err_vid, pkl)
+            # pkl.close()
             
             print('done')

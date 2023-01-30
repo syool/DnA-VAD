@@ -49,7 +49,7 @@ class AppearanceEncoder(nn.Module):
     
     
 class MotionEncoder(nn.Module):
-    def __init__(self, clip_length) -> None:
+    def __init__(self) -> None:
         super(MotionEncoder, self).__init__()
         def block(c_in, c_out):
             return nn.Sequential(
